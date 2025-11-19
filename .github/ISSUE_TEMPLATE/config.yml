@@ -1,0 +1,17 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 GitHub Discussions
+    url: https://github.com/yourorg/iac-security-guardrails/discussions
+    about: Ask questions and discuss with the community
+
+  - name: 📖 Documentation
+    url: https://github.com/yourorg/iac-security-guardrails#documentation
+    about: Check the comprehensive documentation
+
+  - name: 🔒 Private Security Disclosure
+    url: https://github.com/yourorg/iac-security-guardrails/security/advisories/new
+    about: Report security vulnerabilities privately
+
+  - name: ❓ Stack Overflow
+    url: https://stackoverflow.com/questions/tagged/iac-guard
+    about: Ask technical questions on Stack Overflow

@@ -1,0 +1,33 @@
+# Code Owners for IaC Security Guardrails
+# These owners will be automatically requested for review when someone opens a pull request.
+
+# Default owners for everything in the repo
+*       @yourorg/iac-security-team
+
+# Core Python code
+*.py    @yourorg/python-maintainers
+/iac_guard.py @yourorg/core-maintainers
+
+# Security policies
+/policies/opa/*.rego @yourorg/security-team @yourorg/policy-maintainers
+
+# Documentation
+*.md    @yourorg/documentation-team
+/docs/  @yourorg/documentation-team
+
+# CI/CD configurations
+/.github/workflows/ @yourorg/devops-team
+/ci/    @yourorg/devops-team
+
+# Terraform examples
+/iac/terraform/ @yourorg/terraform-experts
+
+# Tests
+/tests/ @yourorg/qa-team
+
+# Scripts and automation
+/scripts/   @yourorg/devops-team
+/scanners/  @yourorg/security-team
+
+# Dependencies
+/requirements.txt   @yourorg/dependency-managers

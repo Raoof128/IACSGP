@@ -1,0 +1,74 @@
+# Docker Compose configuration for IaC Security Guardrails
+# Useful for development and testing
+
+version: '3.8'
+
+services:
+  iac-guard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        TERRAFORM_VERSION: "1.6.0"
+        TFSEC_VERSION: "1.28.1"
+        CONFTEST_VERSION: "0.45.0"
+    image: iac-guard:latest
+    container_name: iac-guard
+    volumes:
+      # Mount your Terraform code
+      - ./iac/terraform:/terraform:ro
+      # Mount policies
+      - ./policies:/app/policies:ro
+      # Mount reports output
+      - ./reports:/app/reports
+    environment:
+      # Set environment variables
+      - PYTHONUNBUFFERED=1
+      - IAC_GUARD_VERBOSE=false
+    command: >
+      scan
+      --path /terraform
+      --severity-threshold HIGH
+      --format all
+    restart: "no"
+    networks:
+      - iac-network
+
+  # Development service with live reload
+  iac-guard-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: iac-guard:dev
+    container_name: iac-guard-dev
+    volumes:
+      # Mount source code for development
+      - .:/app
+      # Mount Terraform code
+      - ./iac/terraform:/terraform:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - IAC_GUARD_VERBOSE=true
+    command: /bin/bash
+    stdin_open: true
+    tty: true
+    networks:
+      - iac-network
+
+networks:
+  iac-network:
+    driver: bridge
+
+# Usage Examples:
+#
+# Build and run:
+#   docker-compose up iac-guard
+#
+# Development mode:
+#   docker-compose run --rm iac-guard-dev
+#
+# Scan custom path:
+#   docker-compose run --rm iac-guard scan --path /terraform/examples
+#
+# Generate specific report:
+#   docker-compose run --rm iac-guard scan --format json --output /app/reports/custom.json

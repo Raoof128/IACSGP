@@ -1,0 +1,84 @@
+# Docker ignore file - Reduces image size and build time
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Reports and output
+reports/
+*.json
+*.sarif
+*.md
+!README.md
+!*.example.md
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Documentation
+docs/
+*.pdf
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+*.tfplan
+crash.log
+
+# Logs
+*.log
+logs/
+
+# Testing
+tests/
+.coverage
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# OS files
+Thumbs.db
+desktop.ini
+
+# Keep these
+!iac/terraform/
+!policies/
+!scanners/
+!scripts/
+!iac_guard.py
+!requirements.txt
+!LICENSE
+!README.md

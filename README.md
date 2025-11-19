@@ -1,14 +1,31 @@
 # 🛡️ IaC Security Guardrails
 
+<div align="center">
+
 **Infrastructure-as-Code Security Pipeline for Terraform**
 
 A production-ready security guardrails system that automatically scans Terraform projects for misconfigurations, enforces policy-as-code, and blocks insecure changes in CI/CD pipelines.
 
-> *"Designed an Infrastructure-as-Code (IaC) security guardrails pipeline that enforces policy-as-code for Terraform in CI/CD, automatically blocking insecure cloud changes before deployment."*
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Terraform](https://img.shields.io/badge/terraform-1.0+-purple.svg)](https://www.terraform.io/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
+[![GitHub issues](https://img.shields.io/github/issues/yourorg/iac-security-guardrails)](https://github.com/yourorg/iac-security-guardrails/issues)
+[![GitHub stars](https://img.shields.io/github/stars/yourorg/iac-security-guardrails)](https://github.com/yourorg/iac-security-guardrails/stargazers)
+[![CI](https://github.com/yourorg/iac-security-guardrails/workflows/CI/badge.svg)](https://github.com/yourorg/iac-security-guardrails/actions)
+[![Docker](https://img.shields.io/badge/docker-ready-blue?logo=docker)](https://hub.docker.com/r/yourorg/iac-guard)
+[![Security](https://img.shields.io/badge/security-enabled-green?logo=security)](SECURITY.md)
+
+> *"Shift security left by enforcing policy-as-code for Terraform in CI/CD, automatically blocking insecure cloud changes before deployment."*
+
+[Features](#-features) •
+[Quick Start](#-quick-start) •
+[Documentation](#-table-of-contents) •
+[Contributing](#-contributing) •
+[FAQ](FAQ.md)
+
+</div>
 
 ---
 
