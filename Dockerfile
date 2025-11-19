@@ -2,7 +2,7 @@
 # Optimized for size and security
 
 # Stage 1: Builder
-FROM python:3.11-slim AS builder
+FROM python:3.14-slim AS builder
 
 LABEL maintainer="IaC Security Team <security@yourorg.com>"
 LABEL description="Infrastructure-as-Code Security Guardrails - Security scanning pipeline for Terraform"
@@ -49,7 +49,7 @@ RUN wget -q "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terra
     && rm terraform_${TERRAFORM_VERSION}_linux_amd64.zip
 
 # Stage 2: Runtime
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 LABEL maintainer="IaC Security Team <security@yourorg.com>"
 LABEL version="1.0.0"
