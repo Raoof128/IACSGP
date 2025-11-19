@@ -1,0 +1,73 @@
+============================================================
+IaC Security Guardrails - Starting Security Scan
+============================================================
+Target: /home/user/iac-security-guardrails/iac/terraform/examples
+Severity Threshold: HIGH
+Scanners: tfsec, checkov
+Time: 2024-01-15 14:30:45
+============================================================
+
+Step 1: Running Terraform Format & Validation
+------------------------------------------------------------
+⚠ Some files need formatting
+⚠ Format check completed with warnings
+
+Initializing Terraform...
+✓ Terraform configuration is valid
+
+Step 2a: Running tfsec Security Scanner
+------------------------------------------------------------
+✓ tfsec scan completed in 1.23s
+  Found 15 issues
+
+Step 2b: Running Checkov Security Scanner
+------------------------------------------------------------
+✓ Checkov scan completed in 5.67s
+  Found 23 issues
+
+============================================================
+Scan Results Summary
+============================================================
+
+Total Issues Found: 38
+  🔴 Critical: 3
+  🟠 High:     12
+  🟡 Medium:   18
+  🔵 Low:      5
+  ⚪ Info:     0
+
+❌ FAILED: Found 15 issues at or above HIGH severity
+
+Issues exceeding threshold:
+------------------------------------------------------------
+
+CRITICAL Severity (3 issues):
+  • tfsec: S3 bucket allows public access via ACL
+    File: insecure_example.tf:28
+    Resource: aws_s3_bucket_acl.public_bucket
+  • tfsec: RDS instance is publicly accessible
+    File: insecure_example.tf:98
+    Resource: aws_db_instance.insecure_db
+  • checkov: Database password is hardcoded
+    File: insecure_example.tf:100
+    Resource: aws_db_instance.insecure_db
+
+HIGH Severity (12 issues):
+  • tfsec: S3 bucket does not have encryption enabled
+    File: insecure_example.tf:18
+    Resource: aws_s3_bucket.public_bucket
+  • tfsec: Security group allows SSH from 0.0.0.0/0
+    File: insecure_example.tf:42
+    Resource: aws_security_group.insecure_ssh
+  • tfsec: Security group allows RDP from 0.0.0.0/0
+    File: insecure_example.tf:50
+    Resource: aws_security_group.insecure_ssh
+  • tfsec: Security group allows all traffic from internet
+    File: insecure_example.tf:58
+    Resource: aws_security_group.insecure_ssh
+  • checkov: EBS volume is not encrypted
+    File: insecure_example.tf:78
+    Resource: aws_ebs_volume.unencrypted
+    ... and 7 more HIGH issues
+
+============================================================

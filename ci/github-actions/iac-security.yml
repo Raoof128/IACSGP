@@ -73,31 +73,39 @@ jobs:
 
       - name: Run IaC Security Scan
         id: iac-scan
+        continue-on-error: true
         run: |
           echo "Running IaC Guard security scan..."
-          python3 iac_guard.py scan \
+          if python3 iac_guard.py scan \
             --path ./iac/terraform \
             --severity-threshold HIGH \
             --format json \
-            --output reports/iac-guard-report.json || echo "SCAN_FAILED=true" >> $GITHUB_ENV
+            --output reports/iac-guard-report.json; then
+            echo "scan_status=passed" >> $GITHUB_OUTPUT
+          else
+            echo "scan_status=failed" >> $GITHUB_OUTPUT
+            echo "SCAN_FAILED=true" >> $GITHUB_ENV
+          fi
 
       - name: Generate SARIF report
         if: always()
+        continue-on-error: true
         run: |
           python3 iac_guard.py scan \
             --path ./iac/terraform \
             --severity-threshold HIGH \
             --format sarif \
-            --output reports/iac-guard-report.sarif || true
+            --output reports/iac-guard-report.sarif || echo "SARIF generation failed"
 
       - name: Generate Markdown report
         if: always()
+        continue-on-error: true
         run: |
           python3 iac_guard.py scan \
             --path ./iac/terraform \
             --severity-threshold HIGH \
             --format markdown \
-            --output reports/iac-guard-report.md || true
+            --output reports/iac-guard-report.md || echo "Markdown generation failed"
 
       - name: Upload SARIF to GitHub Security
         if: always()

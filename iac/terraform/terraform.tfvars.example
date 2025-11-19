@@ -1,0 +1,17 @@
+# Example Terraform Variables
+# Copy this file to terraform.tfvars and update with your values
+
+aws_region = "us-west-2"
+environment = "dev"
+owner = "platform-team"
+
+# S3 Configuration
+bucket_name = "my-secure-bucket-12345"
+
+# Network Configuration
+vpc_id = "vpc-0123456789abcdef0"
+corporate_cidr = "10.0.0.0/8"
+
+# Database Configuration (use environment variables or AWS Secrets Manager in production)
+db_username = "admin"
+db_password = "CHANGE_ME_USE_SECRETS_MANAGER"
