@@ -1,0 +1,208 @@
+# GitLab CI/CD Pipeline for IaC Security Guardrails
+# Copy this file to .gitlab-ci.yml in your repository root
+
+stages:
+  - validate
+  - security-scan
+  - report
+
+variables:
+  PYTHON_VERSION: "3.10"
+  TERRAFORM_VERSION: "1.6.0"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+    - .terraform
+
+# Base configuration for IaC security jobs
+.iac_security_base:
+  image: python:${PYTHON_VERSION}
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq wget unzip curl git
+    # Install Terraform
+    - wget -q https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip
+    - unzip -q terraform_${TERRAFORM_VERSION}_linux_amd64.zip
+    - mv terraform /usr/local/bin/
+    - terraform version
+    # Install Python dependencies
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+    # Install tfsec
+    - curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+    - mv tfsec /usr/local/bin/
+    - tfsec --version
+    # Install Checkov
+    - pip install checkov
+    - checkov --version
+    # Install Conftest
+    - CONFTEST_VERSION=0.45.0
+    - wget -q "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
+    - tar xzf conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz
+    - mv conftest /usr/local/bin/
+    - conftest --version
+
+# Terraform format and validation
+terraform:validate:
+  extends: .iac_security_base
+  stage: validate
+  script:
+    - echo "Running Terraform format and validation checks..."
+    - bash scripts/format_and_validate.sh ./iac/terraform
+  only:
+    refs:
+      - merge_requests
+      - main
+      - master
+    changes:
+      - iac/**/*
+      - terraform/**/*
+      - "**/*.tf"
+
+# Main IaC Security Scan
+iac:security-scan:
+  extends: .iac_security_base
+  stage: security-scan
+  script:
+    - echo "Running IaC Guard security scan..."
+    - |
+      python3 iac_guard.py scan \
+        --path ./iac/terraform \
+        --severity-threshold HIGH \
+        --format json \
+        --output reports/iac-guard-report.json || EXIT_CODE=$?
+    - |
+      if [ "$EXIT_CODE" != "0" ]; then
+        echo "Security scan failed with exit code $EXIT_CODE"
+        exit $EXIT_CODE
+      fi
+  artifacts:
+    name: "iac-security-reports-${CI_COMMIT_REF_SLUG}"
+    paths:
+      - reports/
+    reports:
+      junit: reports/junit-report.xml
+    expire_in: 30 days
+    when: always
+  only:
+    refs:
+      - merge_requests
+      - main
+      - master
+    changes:
+      - iac/**/*
+      - terraform/**/*
+      - "**/*.tf"
+  allow_failure: false
+
+# Generate SARIF report for GitLab Security Dashboard
+iac:sarif-report:
+  extends: .iac_security_base
+  stage: report
+  script:
+    - echo "Generating SARIF report..."
+    - |
+      python3 iac_guard.py scan \
+        --path ./iac/terraform \
+        --severity-threshold HIGH \
+        --format sarif \
+        --output reports/gl-sast-report.json || true
+  artifacts:
+    reports:
+      sast: reports/gl-sast-report.json
+    paths:
+      - reports/gl-sast-report.json
+    expire_in: 30 days
+    when: always
+  dependencies:
+    - iac:security-scan
+  only:
+    refs:
+      - merge_requests
+      - main
+      - master
+    changes:
+      - iac/**/*
+      - terraform/**/*
+      - "**/*.tf"
+
+# Generate Markdown report for MR comments
+iac:markdown-report:
+  extends: .iac_security_base
+  stage: report
+  script:
+    - echo "Generating Markdown report..."
+    - |
+      python3 iac_guard.py scan \
+        --path ./iac/terraform \
+        --severity-threshold HIGH \
+        --format markdown \
+        --output reports/iac-guard-report.md || true
+  artifacts:
+    paths:
+      - reports/iac-guard-report.md
+    expire_in: 7 days
+    when: always
+  dependencies:
+    - iac:security-scan
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - iac/**/*
+      - terraform/**/*
+      - "**/*.tf"
+
+# Optional: Test insecure examples
+iac:test-insecure-examples:
+  extends: .iac_security_base
+  stage: security-scan
+  script:
+    - echo "Testing that insecure examples are properly detected..."
+    - |
+      python3 iac_guard.py scan \
+        --path ./iac/terraform/examples \
+        --severity-threshold HIGH \
+        --format json \
+        --output reports/insecure-examples-report.json || SCAN_FAILED=true
+    - |
+      if [ "$SCAN_FAILED" == "true" ]; then
+        echo "✅ Insecure examples were correctly flagged"
+        exit 0
+      else
+        echo "❌ ERROR: Insecure examples should have failed!"
+        exit 1
+      fi
+  artifacts:
+    paths:
+      - reports/insecure-examples-report.json
+    expire_in: 7 days
+    when: always
+  allow_failure: true
+  only:
+    - merge_requests
+    - schedules
+
+# Scheduled deep scan (runs all scanners)
+iac:deep-scan:
+  extends: .iac_security_base
+  stage: security-scan
+  script:
+    - echo "Running comprehensive deep scan..."
+    - |
+      python3 iac_guard.py scan \
+        --path ./iac/terraform \
+        --severity-threshold MEDIUM \
+        --scanners tfsec checkov conftest \
+        --format json \
+        --output reports/deep-scan-report.json
+  artifacts:
+    paths:
+      - reports/deep-scan-report.json
+    expire_in: 90 days
+    when: always
+  only:
+    - schedules
+  allow_failure: true

@@ -1,0 +1,220 @@
+name: IaC Security Guardrails
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+    paths:
+      - 'iac/**'
+      - 'terraform/**'
+      - '**.tf'
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+env:
+  PYTHON_VERSION: '3.10'
+  TERRAFORM_VERSION: '1.6.0'
+
+jobs:
+  iac-security-scan:
+    name: IaC Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install tfsec
+        run: |
+          curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+          sudo mv tfsec /usr/local/bin/
+          tfsec --version
+
+      - name: Install Checkov
+        run: |
+          pip install checkov
+          checkov --version
+
+      - name: Install Conftest
+        run: |
+          CONFTEST_VERSION=0.45.0
+          wget "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
+          tar xzf conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz
+          sudo mv conftest /usr/local/bin/
+          conftest --version
+
+      - name: Run IaC Security Scan
+        id: iac-scan
+        run: |
+          echo "Running IaC Guard security scan..."
+          python3 iac_guard.py scan \
+            --path ./iac/terraform \
+            --severity-threshold HIGH \
+            --format json \
+            --output reports/iac-guard-report.json || echo "SCAN_FAILED=true" >> $GITHUB_ENV
+
+      - name: Generate SARIF report
+        if: always()
+        run: |
+          python3 iac_guard.py scan \
+            --path ./iac/terraform \
+            --severity-threshold HIGH \
+            --format sarif \
+            --output reports/iac-guard-report.sarif || true
+
+      - name: Generate Markdown report
+        if: always()
+        run: |
+          python3 iac_guard.py scan \
+            --path ./iac/terraform \
+            --severity-threshold HIGH \
+            --format markdown \
+            --output reports/iac-guard-report.md || true
+
+      - name: Upload SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: reports/iac-guard-report.sarif
+        continue-on-error: true
+
+      - name: Upload scan reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: iac-security-reports
+          path: |
+            reports/*.json
+            reports/*.sarif
+            reports/*.md
+          retention-days: 30
+
+      - name: Comment on PR with results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Read the markdown report
+            let comment = '## 🛡️ IaC Security Guardrails Report\n\n';
+
+            try {
+              const reportPath = 'reports/iac-guard-report.md';
+              if (fs.existsSync(reportPath)) {
+                const report = fs.readFileSync(reportPath, 'utf8');
+                comment += report;
+              } else {
+                comment += '⚠️ Report file not found. Check the workflow logs for details.\n';
+              }
+            } catch (error) {
+              comment += `⚠️ Error reading report: ${error.message}\n`;
+            }
+
+            // Add workflow run link
+            comment += `\n\n---\n[View full workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId})`;
+
+            // Post comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Check scan results
+        if: env.SCAN_FAILED == 'true'
+        run: |
+          echo "❌ IaC security scan failed!"
+          echo "Critical or High severity issues were found."
+          echo "Review the reports above and fix the issues before merging."
+          exit 1
+
+      - name: Scan passed
+        if: env.SCAN_FAILED != 'true'
+        run: |
+          echo "✅ IaC security scan passed!"
+          echo "No critical or high severity issues found."
+
+  # Optional: Run additional checks on insecure examples
+  validate-insecure-examples:
+    name: Validate Insecure Examples Detection
+    runs-on: ubuntu-latest
+    needs: iac-security-scan
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+          sudo mv tfsec /usr/local/bin/
+          pip install checkov
+
+      - name: Scan insecure examples (should fail)
+        id: insecure-scan
+        run: |
+          echo "Scanning intentionally insecure examples..."
+          python3 iac_guard.py scan \
+            --path ./iac/terraform/examples \
+            --severity-threshold HIGH \
+            --format json \
+            --output reports/insecure-examples-report.json || echo "EXPECTED_FAILURE=true" >> $GITHUB_ENV
+
+      - name: Verify insecure examples were caught
+        run: |
+          if [ "$EXPECTED_FAILURE" == "true" ]; then
+            echo "✅ Insecure examples were correctly flagged by the scanner"
+            exit 0
+          else
+            echo "❌ ERROR: Insecure examples should have failed the scan!"
+            exit 1
+          fi
+
+      - name: Upload insecure examples report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: insecure-examples-report
+          path: reports/insecure-examples-report.json
+          retention-days: 7

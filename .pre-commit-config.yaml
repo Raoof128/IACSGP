@@ -1,0 +1,158 @@
+# Pre-commit hooks for IaC Security Guardrails
+# Install pre-commit: pip install pre-commit
+# Setup hooks: pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  # Terraform formatting and validation
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.83.5
+    hooks:
+      - id: terraform_fmt
+        name: Terraform Format
+        description: Rewrites all Terraform configuration files to a canonical format
+        args:
+          - --args=-recursive
+
+      - id: terraform_validate
+        name: Terraform Validate
+        description: Validates all Terraform configuration files
+        args:
+          - --hook-config=--retry-once-with-cleanup=true
+
+      - id: terraform_docs
+        name: Terraform Docs
+        description: Inserts/updates documentation in Terraform modules
+        args:
+          - --hook-config=--path-to-file=README.md
+          - --hook-config=--add-to-existing-file=true
+          - --hook-config=--create-file-if-not-exist=true
+
+      - id: terraform_tflint
+        name: Terraform TFLint
+        description: Lints Terraform code
+        args:
+          - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
+
+  # tfsec security scanner
+  - repo: https://github.com/aquasecurity/tfsec
+    rev: v1.28.1
+    hooks:
+      - id: tfsec
+        name: tfsec Security Scan
+        description: Runs tfsec security scanner on Terraform code
+        entry: tfsec
+        args:
+          - --soft-fail
+          - --format=default
+          - --exclude-downloaded-modules
+        files: \.tf$
+        exclude: \.terraform/
+
+  # Checkov security scanner
+  - repo: https://github.com/bridgecrewio/checkov
+    rev: 3.0.0
+    hooks:
+      - id: checkov
+        name: Checkov Security Scan
+        description: Runs Checkov security scanner on Terraform code
+        args:
+          - --quiet
+          - --framework=terraform
+          - --soft-fail
+        files: \.tf$
+
+  # Python code quality
+  - repo: https://github.com/psf/black
+    rev: 23.9.1
+    hooks:
+      - id: black
+        name: Black Python Formatter
+        language_version: python3
+        files: \.py$
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.1.0
+    hooks:
+      - id: flake8
+        name: Flake8 Python Linter
+        args:
+          - --max-line-length=100
+          - --extend-ignore=E203,W503
+        files: \.py$
+
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim Trailing Whitespace
+        exclude: \.md$
+
+      - id: end-of-file-fixer
+        name: Fix End of Files
+
+      - id: check-yaml
+        name: Check YAML
+        args:
+          - --safe
+
+      - id: check-json
+        name: Check JSON
+
+      - id: check-added-large-files
+        name: Check for Large Files
+        args:
+          - --maxkb=1024
+
+      - id: check-merge-conflict
+        name: Check for Merge Conflicts
+
+      - id: detect-private-key
+        name: Detect Private Keys
+
+      - id: mixed-line-ending
+        name: Fix Mixed Line Endings
+
+  # Markdown linting
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.37.0
+    hooks:
+      - id: markdownlint
+        name: Markdown Lint
+        args:
+          - --fix
+          - --disable=MD013,MD033
+
+  # Shell script linting
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.6
+    hooks:
+      - id: shellcheck
+        name: ShellCheck
+        args:
+          - --severity=warning
+        files: \.(sh|bash)$
+
+  # Custom IaC Guard scan (light mode for pre-commit)
+  - repo: local
+    hooks:
+      - id: iac-guard-scan
+        name: IaC Guard Security Scan
+        description: Runs lightweight IaC security checks before commit
+        entry: python3 iac_guard.py scan
+        args:
+          - --path=./iac/terraform
+          - --severity-threshold=HIGH
+          - --scanners=tfsec
+        language: system
+        files: \.tf$
+        pass_filenames: false
+
+      - id: check-insecure-examples
+        name: Check Insecure Examples Exist
+        description: Ensures insecure examples directory exists for testing
+        entry: bash -c 'test -d iac/terraform/examples || (echo "Missing insecure examples for testing" && exit 1)'
+        language: system
+        pass_filenames: false
+        always_run: false
