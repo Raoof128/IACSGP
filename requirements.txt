@@ -8,7 +8,7 @@ tfsec>=1.28.0
 pre-commit>=3.5.0,<4.0.0
 
 # Code quality tools
-black>=23.9.1,<24.0.0
+black>=23.9.1,<26.0.0
 flake8>=6.1.0,<7.0.0
 pylint>=3.0.0,<4.0.0
 
